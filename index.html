@@ -184,14 +184,7 @@
   }
 
   .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
     margin-bottom: 12px;
-  }
-
-  @media (max-width: 500px) {
-    .form-row { grid-template-columns: 1fr; }
   }
 
   input, textarea {
@@ -411,6 +404,26 @@
     word-break: break-word;
   }
 
+  .card-body.collapsed {
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .expand-btn {
+    background: none;
+    border: none;
+    color: var(--accent2);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 0 0 0;
+    display: block;
+  }
+
+  .expand-btn:hover { opacity: 0.8; }
+
   /* ── Avatar colors ── */
   .av0 { background: rgba(127,90,240,0.2); color: #c4adff; }
   .av1 { background: rgba(0,255,157,0.15); color: #00ff9d; }
@@ -496,7 +509,7 @@
 
     // Veranstaltungsdetails:
     LAN_NAME:       'KRC | LAN#100',              // Titel oben auf der Seite
-    LAN_SUBTITLE:   'Was war euer bester Moment? Warum ist diese LAN besonders? Schreibt es hier!',
+    LAN_SUBTITLE:   'Deine Grüße an den KRC - z.B. Was gefällt Dir am besten? Schönstes LAN Erlebnis? Was wünschst Du dem KRC? Schreib es hier!',
     LAN_YEARS:      100,                          // Jubiläumszahl
 
     // Admin-Passwort für den Export-Button (URL: ?admin=PASSWORT)
@@ -538,11 +551,10 @@
     <div class="error-banner" id="form-error"></div>
     <div class="form-row">
       <input type="text" id="inp-name" placeholder="Dein Name (oder Nickname)" maxlength="40">
-      <input type="text" id="inp-tag" placeholder="z. B. 'Bestes Match ever'" maxlength="60">
     </div>
-    <textarea id="inp-msg" placeholder="Dein Kommentar an den KRC..." maxlength="500"></textarea>
+    <textarea id="inp-msg" placeholder="Dein Gruß an den KRC..." maxlength="2000"></textarea>
     <div class="form-footer">
-      <span class="char-count"><span id="char-left">500</span> Zeichen übrig</span>
+      <span class="char-count"><span id="char-left">2000</span> Zeichen übrig</span>
       <button class="submit-btn" id="submit-btn" onclick="submitComment()">
         <span class="spinner" id="spinner"></span>
         Absenden ↗
@@ -623,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ── Zeichenzähler ── */
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inp-msg').addEventListener('input', function() {
-    document.getElementById('char-left').textContent = 500 - this.value.length;
+    document.getElementById('char-left').textContent = 2000 - this.value.length;
   });
 });
 
@@ -660,7 +672,6 @@ function subscribeRealtime() {
 /* ── Kommentar absenden ── */
 async function submitComment() {
   const name = document.getElementById('inp-name').value.trim() || 'Anonym';
-  const tag  = document.getElementById('inp-tag').value.trim();
   const msg  = document.getElementById('inp-msg').value.trim();
 
   hideError('form-error');
@@ -672,7 +683,7 @@ async function submitComment() {
 
   setLoading(true);
 
-  const { error } = await sbClient.from('comments').insert([{ name, tag, message: msg }]);
+  const { error } = await sbClient.from('comments').insert([{ name, message: msg }]);
 
   setLoading(false);
 
@@ -682,9 +693,8 @@ async function submitComment() {
   }
 
   document.getElementById('inp-name').value = '';
-  document.getElementById('inp-tag').value  = '';
   document.getElementById('inp-msg').value  = '';
-  document.getElementById('char-left').textContent = 500;
+  document.getElementById('char-left').textContent = 2000;
 
   showToast('✓ Gruß abgeschickt – danke!');
 }
@@ -715,26 +725,41 @@ function buildCard(c, isNew) {
   const avClass  = 'av' + (simpleHash(c.name || '') % 6);
   const timeStr  = relativeTime(c.created_at);
   const newCls   = isNew ? ' new' : '';
+  const msg      = esc(c.message);
+  const isLong   = (c.message || '').length > 500;
+  const cardId   = 'card-' + (c.id || Math.random().toString(36).slice(2));
 
   return `
-    <div class="card${newCls}">
+    <div class="card${newCls}" id="${cardId}">
       <div class="card-head">
         <div class="avatar ${avClass}">${initials}</div>
         <span class="card-name">${esc(c.name || 'Anonym')}</span>
         <span class="card-time">${timeStr}</span>
       </div>
-      ${c.tag ? `<div style="font-size:11px;color:var(--accent2);margin-bottom:8px;font-family:var(--font-mono)">» ${esc(c.tag)}</div>` : ''}
-      <p class="card-body">${esc(c.message)}</p>
+      <p class="card-body${isLong ? ' collapsed' : ''}" id="body-${cardId}">${msg}</p>
+      ${isLong ? `<button class="expand-btn" id="btn-${cardId}" onclick="toggleExpand('${cardId}')">▼ mehr anzeigen</button>` : ''}
     </div>`;
+}
+
+/* ── Expand/Collapse ── */
+function toggleExpand(cardId) {
+  const body = document.getElementById('body-' + cardId);
+  const btn  = document.getElementById('btn-'  + cardId);
+  if (body.classList.contains('collapsed')) {
+    body.classList.remove('collapsed');
+    btn.textContent = '▲ weniger anzeigen';
+  } else {
+    body.classList.add('collapsed');
+    btn.textContent = '▼ mehr anzeigen';
+  }
 }
 
 /* ── CSV-Export ── */
 function exportCSV() {
-  const rows = [['Name', 'Tag', 'Kommentar', 'Zeitstempel']];
+  const rows = [['Name', 'Kommentar', 'Zeitstempel']];
   allComments.forEach(c => {
     rows.push([
       '"' + (c.name    || '').replace(/"/g, '""') + '"',
-      '"' + (c.tag     || '').replace(/"/g, '""') + '"',
       '"' + (c.message || '').replace(/"/g, '""') + '"',
       '"' + (c.created_at || '') + '"'
     ]);
