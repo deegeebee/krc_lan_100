@@ -571,6 +571,9 @@
     <button class="export-btn" id="export-btn" onclick="exportCSV()" style="display:none">
       ↓ Als CSV exportieren
     </button>
+    <button class="export-btn" id="export-btn-html" onclick="exportHTML()" style="display:none">
+      ↓ Als HTML exportieren
+    </button>
   </div>
 
   <div class="cards-grid" id="cards-grid">
@@ -618,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isAdmin = true;
     document.getElementById('admin-panel').classList.add('visible');
     document.getElementById('export-btn').style.display = 'flex';
+    document.getElementById('export-btn-html').style.display = 'flex';
   }
 
   // Supabase-Config prüfen
@@ -770,6 +774,69 @@ function exportCSV() {
   const a    = document.createElement('a');
   a.href     = url;
   a.download = 'lan-grüsse.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── HTML-Export ── */
+function exportHTML() {
+  const lanName = CONFIG.LAN_NAME || 'LAN-Jubiläum';
+  const now     = new Date().toLocaleDateString('de-DE', { day:'2-digit', month:'long', year:'numeric' });
+
+  const cards = allComments.map(c => {
+    const initials = (c.name || 'AN').slice(0, 2).toUpperCase();
+    const time     = relativeTime(c.created_at);
+    const msg      = (c.message || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\n/g,'<br>');
+    const name     = (c.name || 'Anonym').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `
+      <div class="card">
+        <div class="card-head">
+          <div class="avatar">${initials}</div>
+          <div>
+            <div class="card-name">${name}</div>
+            <div class="card-time">${time}</div>
+          </div>
+        </div>
+        <div class="card-body">${msg}</div>
+      </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>${lanName.replace(/</g,'&lt;')} – Grüße</title>
+<style>
+  body { font-family: Georgia, serif; background: #f5f5f5; color: #1a1a1a; margin: 0; padding: 2rem; }
+  h1 { font-size: 2rem; text-align: center; margin-bottom: 0.25rem; }
+  .meta { text-align: center; color: #888; font-size: 13px; margin-bottom: 2rem; font-family: monospace; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; max-width: 1100px; margin: 0 auto; }
+  .card { background: #fff; border: 1px solid #ddd; border-top: 3px solid #7f5af0; border-radius: 10px; padding: 1.25rem; break-inside: avoid; }
+  .card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: #ede9fe; color: #5b21b6; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; font-family: sans-serif; }
+  .card-name { font-weight: 700; font-size: 14px; font-family: sans-serif; }
+  .card-time { font-size: 12px; color: #999; font-family: monospace; }
+  .card-body { font-size: 14px; line-height: 1.75; color: #444; }
+  @media print {
+    body { background: #fff; padding: 0.5rem; }
+    .card { box-shadow: none; border: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+  <h1>🎉 ${lanName.replace(/</g,'&lt;')}</h1>
+  <p class="meta">Exportiert am ${now} &nbsp;·&nbsp; ${allComments.length} Grüße</p>
+  <div class="grid">${cards}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'lan-grüsse.html';
   a.click();
   URL.revokeObjectURL(url);
 }
