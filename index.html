@@ -612,7 +612,11 @@ let allComments = [];
 let isAdmin = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Config auf Seite anwenden
+  // Event-Listener registrieren
+  document.getElementById('submit-btn').addEventListener('click', submitComment);
+  document.getElementById('export-btn').addEventListener('click', exportCSV);
+  document.getElementById('export-btn-html').addEventListener('click', exportHTML);
+
   // Event-Delegation für Expand-Buttons in den Karten
   document.getElementById('cards-grid').addEventListener('click', e => {
     const btn = e.target.closest('.expand-btn');
